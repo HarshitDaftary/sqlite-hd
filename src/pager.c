@@ -2,7 +2,6 @@
 
 /* Global variable to enable/disable queue feature at runtime */
 static int gQueueEnabled = -1; /* -1: uninitialized, 0: disabled, 1: enabled */
-static int gQueueTestMode = -1; /* -1: uninitialized, 0: off, 1: on */
 
 /* Helper to check and set queue enabled state from environment */
 static void checkQueueEnabled() {
@@ -12,16 +11,6 @@ static void checkQueueEnabled() {
       gQueueEnabled = 1;
     } else {
       gQueueEnabled = 0;
-    }
-  }
-}
-static void checkQueueTestMode() {
-  if (gQueueTestMode == -1) {
-    const char *env = getenv("SQLITE_QUEUE_TEST_MODE");
-    if (env && (env[0] == '1' || env[0] == 'y' || env[0] == 'Y')) {
-      gQueueTestMode = 1;
-    } else {
-      gQueueTestMode = 0;
     }
   }
 }
@@ -6304,25 +6293,7 @@ int sqlite3PagerWrite(PgHdr *pPg){
   assert( pPager->eState>=PAGER_WRITER_LOCKED );
   assert( assert_pager_state(pPager) );
 
-  /* Test instrumentation: force BUSY on second page write in a transaction when queue disabled. */
-  checkQueueTestMode();
-  if (gQueueTestMode) {
-    /* Track per-transaction write count (any page). Force BUSY on 2nd+ write if queue disabled. */
-    static Pager *instPager = 0;          /* Pager currently tracked */
-    static int instWriteCount = 0;        /* Count of writes in current transaction */
-    if (pPager != instPager || pPager->eState != PAGER_WRITER_LOCKED) {
-      instPager = pPager;
-      instWriteCount = 0;
-    }
-    if (pPager->eState == PAGER_WRITER_LOCKED) {
-      instWriteCount++;
-      checkQueueEnabled();
-      if (!gQueueEnabled && instWriteCount >= 2) {
-        return SQLITE_BUSY;
-      }
-    }
-  }
-
+  /* (Former test instrumentation removed) */
   /* Multi-Consumer Write Queue Integration: WAL mode, batch commit, and logging */
   static int wal_mode_set = 0;
   if (!wal_mode_set && pPager->dbWal) {
@@ -6343,9 +6314,6 @@ int sqlite3PagerWrite(PgHdr *pPg){
       queue_initialized = 1;
     }
 
-    /* Logging macro for queue operations */
-#define QUEUE_LOG(MSG, ...)
-
     /* If another write is in progress, enqueue this request.
     ** Do NOT enqueue writes to page 1 (schema/change-counter). Those
     ** changes must be visible immediately to the connection that
@@ -6361,10 +6329,8 @@ int sqlite3PagerWrite(PgHdr *pPg){
         ** be committed by the batch flush logic when possible.
         */
         sqlite3WriteQueueEnqueue(&writeQueue, &entry);
-        QUEUE_LOG("Enqueued write for page %d (Pager %p)", pPg->pgno, pPager);
         return SQLITE_OK; /* Indicate accepted and queued */
       } else {
-        QUEUE_LOG("Queue full, cannot enqueue write for page %d (Pager %p)", pPg->pgno, pPager);
         return SQLITE_FULL; /* Queue is full */
       }
     }
@@ -6389,7 +6355,6 @@ int sqlite3PagerWrite(PgHdr *pPg){
 
   /* Batch commit logic: process queued writes if not locked */
   if (!sqlite3WriteQueueIsEmpty(&writeQueue) && pPager->eState != PAGER_WRITER_LOCKED) {
-    QUEUE_LOG("Batch committing queued writes (Pager %p)", pPager);
     while (!sqlite3WriteQueueIsEmpty(&writeQueue)) {
       WriteQueueEntry nextEntry;
       sqlite3WriteQueueDequeue(&writeQueue, &nextEntry);
@@ -6397,9 +6362,7 @@ int sqlite3PagerWrite(PgHdr *pPg){
       PgHdr *nextPg = (PgHdr*)nextEntry.page;
       if (nextPager && nextPg && nextPager->eState != PAGER_WRITER_LOCKED) {
         int batch_rc = pager_write(nextPg);
-        QUEUE_LOG("Committed queued write for page %d (Pager %p), rc=%d", nextPg->pgno, nextPager, batch_rc);
       } else {
-        QUEUE_LOG("Skipped queued write for page %d (Pager %p), still locked", nextPg ? nextPg->pgno : -1, nextPager);
       }
     }
   }
