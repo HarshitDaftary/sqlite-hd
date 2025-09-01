@@ -1,0 +1,46 @@
+########################################################################
+#  Test file for the experimental PRAGMA queue_enabled
+#
+#  Verifies:
+#   * Default value is 0
+#   * Setting to 1 (numeric) enables and persists
+#   * Setting via ON/OFF keywords works
+#   * Toggle back to 0
+#
+#  Guarded so it silently passes if compiled without SQLITE_ENABLE_QUEUE.
+########################################################################
+
+set testdir [file dirname $argv0]
+source $testdir/tester.tcl
+
+# Skip if queue feature not compiled in.
+if {![info exists ::sqlite_options(SQLITE_ENABLE_QUEUE)]} {
+  finish_test
+  return
+}
+
+reset_db
+
+do_execsql_test queue_enabled-1.1 { PRAGMA queue_enabled; } {0}
+
+do_execsql_test queue_enabled-1.2 {
+  PRAGMA queue_enabled=1;
+  PRAGMA queue_enabled;
+} {1}
+
+do_execsql_test queue_enabled-1.3 {
+  PRAGMA queue_enabled=ON;
+  PRAGMA queue_enabled;
+} {1}
+
+do_execsql_test queue_enabled-1.4 {
+  PRAGMA queue_enabled=OFF;
+  PRAGMA queue_enabled;
+} {0}
+
+do_execsql_test queue_enabled-1.5 {
+  PRAGMA queue_enabled=0;
+  PRAGMA queue_enabled;
+} {0}
+
+finish_test
