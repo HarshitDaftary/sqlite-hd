@@ -1,0 +1,73 @@
+########################################################################
+#  Extended functional tests for PRAGMA queue_enabled
+#
+#  Goals:
+#    * Demonstrate the pragma value is global (affects second connection)
+#    * Exercise nested writes via triggers while queue enabled
+#    * Verify no errors in nested write scenario with and without queue
+#
+#  Skips silently if SQLITE_ENABLE_QUEUE not compiled.
+########################################################################
+
+set testdir [file dirname $argv0]
+source $testdir/tester.tcl
+
+if {![info exists ::sqlite_options(SQLITE_ENABLE_QUEUE)]} {
+  finish_test
+  return
+}
+
+# Ensure clean DB
+reset_db
+sqlite3 db2 test.db
+
+# 1. Global propagation test
+do_test queue_enabled_func-1.1 { execsql {PRAGMA queue_enabled;} } {0}
+do_test queue_enabled_func-1.2 { execsql {PRAGMA queue_enabled;} db2 } {0}
+do_test queue_enabled_func-1.3 {
+  execsql {PRAGMA queue_enabled=1;}
+  list [execsql {PRAGMA queue_enabled;}] [execsql {PRAGMA queue_enabled;} db2]
+} {1 1}
+do_test queue_enabled_func-1.4 {
+  execsql {PRAGMA queue_enabled=0;} db2
+  list [execsql {PRAGMA queue_enabled;}] [execsql {PRAGMA queue_enabled;} db2]
+} {0 0}
+
+# 2. Nested trigger write stress
+# Construct a trigger that on insert adds another row referencing itself.
+execsql {
+  PRAGMA queue_enabled=1;
+  CREATE TABLE t(id INTEGER PRIMARY KEY, x INT);
+  CREATE TRIGGER t_ai AFTER INSERT ON t BEGIN
+    INSERT INTO t(x) VALUES(new.x+1);
+  END;
+}
+
+do_test queue_enabled_func-2.1 {
+  execsql { INSERT INTO t(x) VALUES(10); SELECT count(*) FROM t; }
+} {2}
+
+# Disable queue and perform same action again (new table to avoid infinite growth)
+execsql {
+  PRAGMA queue_enabled=0;
+  CREATE TABLE t2(id INTEGER PRIMARY KEY, x INT);
+  CREATE TRIGGER t2_ai AFTER INSERT ON t2 BEGIN
+    INSERT INTO t2(x) VALUES(new.x+1);
+  END;
+}
+
+do_test queue_enabled_func-2.2 {
+  execsql { INSERT INTO t2(x) VALUES(5); SELECT count(*) FROM t2; }
+} {2}
+
+# 3. Simple concurrent attempt (best-effort): hold a write txn in db, attempt insert from db2
+# Expect BUSY regardless of queue setting since queue logic is intra-connection.
+execsql {PRAGMA queue_enabled=1;}
+execsql {CREATE TABLE c(a);}
+execsql {BEGIN IMMEDIATE; INSERT INTO c VALUES(1);}  ;# db holds write lock
+set rc [catch { execsql {INSERT INTO c VALUES(2);} db2 } msg]
+do_test queue_enabled_func-3.1 { expr {$rc==1 && [string match *locked* $msg]} } {1}
+execsql {ROLLBACK;}
+
+db2 close
+finish_test
