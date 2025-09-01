@@ -15,6 +15,12 @@ typedef struct WriteQueue {
   WriteQueueEntry entries[SQLITE_QUEUE_MAX];
   sqlite3_mutex *mutex;
 } WriteQueue;
+
+#ifdef SQLITE_ENABLE_QUEUE
+/* Runtime queue enable flag control (moved from pager.c static scope) */
+int sqlite3PagerQueueEnabled(void);
+void sqlite3PagerSetQueueEnabled(int);
+#endif
 /*
 ** 2001 September 15
 **

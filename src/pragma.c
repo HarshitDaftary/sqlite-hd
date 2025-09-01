@@ -627,6 +627,24 @@ void sqlite3Pragma(
     break;
   }
 
+#ifdef SQLITE_ENABLE_QUEUE
+  /*
+  **  PRAGMA queue_enabled
+  **  PRAGMA queue_enabled = ON/OFF/1/0
+  **
+  ** Enable or disable the experimental pager write queue feature at runtime.
+  ** Returns the new (or current) integer value 0 or 1.
+  */
+  case PragTyp_QUEUE_ENABLED: {
+    if( zRight ){
+      int b = sqlite3GetBoolean(zRight, 0);
+      sqlite3PagerSetQueueEnabled(b);
+    }
+    returnSingleInt(v, sqlite3PagerQueueEnabled());
+    break;
+  }
+#endif /* SQLITE_ENABLE_QUEUE */
+
   /*
   **  PRAGMA [schema.]max_page_count
   **  PRAGMA [schema.]max_page_count=N

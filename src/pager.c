@@ -1,19 +1,11 @@
 #include <stdlib.h>
 
-/* Global variable to enable/disable queue feature at runtime */
-static int gQueueEnabled = -1; /* -1: uninitialized, 0: disabled, 1: enabled */
-
-/* Helper to check and set queue enabled state from environment */
-static void checkQueueEnabled() {
-  if (gQueueEnabled == -1) {
-    const char *env = getenv("SQLITE_QUEUE_ENABLED");
-    if (env && (env[0] == '1' || env[0] == 'y' || env[0] == 'Y')) {
-      gQueueEnabled = 1;
-    } else {
-      gQueueEnabled = 0;
-    }
-  }
-}
+#ifdef SQLITE_ENABLE_QUEUE
+/* Global variable to enable/disable queue feature at runtime (0=off,1=on) */
+static int gQueueEnabled = 0;
+int sqlite3PagerQueueEnabled(void){ return gQueueEnabled; }
+void sqlite3PagerSetQueueEnabled(int v){ gQueueEnabled = v!=0; }
+#endif
 int sqlite3WriteQueueInit(WriteQueue *q) {
   if (!q) return 0;
   q->head = 0;
@@ -6306,9 +6298,7 @@ int sqlite3PagerWrite(PgHdr *pPg){
   static int queue_initialized = 0;
 
 #ifdef SQLITE_ENABLE_QUEUE
-
-  checkQueueEnabled();
-  if (gQueueEnabled) {
+  if (sqlite3PagerQueueEnabled()) {
     if (!queue_initialized) {
       sqlite3WriteQueueInit(&writeQueue);
       queue_initialized = 1;
