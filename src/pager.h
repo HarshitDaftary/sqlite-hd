@@ -1,3 +1,20 @@
+#ifndef SQLITE_QUEUE_MAX
+#define SQLITE_QUEUE_MAX 128
+#endif
+
+typedef struct WriteQueueEntry {
+  void *txnContext;
+  void *page;
+  void *next;
+} WriteQueueEntry;
+
+typedef struct WriteQueue {
+  int head;
+  int tail;
+  int count;
+  WriteQueueEntry entries[SQLITE_QUEUE_MAX];
+  sqlite3_mutex *mutex;
+} WriteQueue;
 /*
 ** 2001 September 15
 **

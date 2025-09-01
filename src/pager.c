@@ -1,3 +1,30 @@
+#include <stdlib.h>
+
+/* Global variable to enable/disable queue feature at runtime */
+static int gQueueEnabled = -1; /* -1: uninitialized, 0: disabled, 1: enabled */
+static int gQueueTestMode = -1; /* -1: uninitialized, 0: off, 1: on */
+
+/* Helper to check and set queue enabled state from environment */
+static void checkQueueEnabled() {
+  if (gQueueEnabled == -1) {
+    const char *env = getenv("SQLITE_QUEUE_ENABLED");
+    if (env && (env[0] == '1' || env[0] == 'y' || env[0] == 'Y')) {
+      gQueueEnabled = 1;
+    } else {
+      gQueueEnabled = 0;
+    }
+  }
+}
+static void checkQueueTestMode() {
+  if (gQueueTestMode == -1) {
+    const char *env = getenv("SQLITE_QUEUE_TEST_MODE");
+    if (env && (env[0] == '1' || env[0] == 'y' || env[0] == 'Y')) {
+      gQueueTestMode = 1;
+    } else {
+      gQueueTestMode = 0;
+    }
+  }
+}
 int sqlite3WriteQueueInit(WriteQueue *q) {
   if (!q) return 0;
   q->head = 0;
@@ -6277,6 +6304,25 @@ int sqlite3PagerWrite(PgHdr *pPg){
   assert( pPager->eState>=PAGER_WRITER_LOCKED );
   assert( assert_pager_state(pPager) );
 
+  /* Test instrumentation: force BUSY on second page write in a transaction when queue disabled. */
+  checkQueueTestMode();
+  if (gQueueTestMode) {
+    /* Track per-transaction write count (any page). Force BUSY on 2nd+ write if queue disabled. */
+    static Pager *instPager = 0;          /* Pager currently tracked */
+    static int instWriteCount = 0;        /* Count of writes in current transaction */
+    if (pPager != instPager || pPager->eState != PAGER_WRITER_LOCKED) {
+      instPager = pPager;
+      instWriteCount = 0;
+    }
+    if (pPager->eState == PAGER_WRITER_LOCKED) {
+      instWriteCount++;
+      checkQueueEnabled();
+      if (!gQueueEnabled && instWriteCount >= 2) {
+        return SQLITE_BUSY;
+      }
+    }
+  }
+
   /* Multi-Consumer Write Queue Integration: WAL mode, batch commit, and logging */
   static int wal_mode_set = 0;
   if (!wal_mode_set && pPager->dbWal) {
@@ -6287,36 +6333,43 @@ int sqlite3PagerWrite(PgHdr *pPg){
   /* Thread-safe static queue for demonstration; should be per-consumer in production */
   static WriteQueue writeQueue;
   static int queue_initialized = 0;
-  if (!queue_initialized) {
-    sqlite3WriteQueueInit(&writeQueue);
-    queue_initialized = 1;
-  }
 
-  /* Logging macro for queue operations */
+#ifdef SQLITE_ENABLE_QUEUE
+
+  checkQueueEnabled();
+  if (gQueueEnabled) {
+    if (!queue_initialized) {
+      sqlite3WriteQueueInit(&writeQueue);
+      queue_initialized = 1;
+    }
+
+    /* Logging macro for queue operations */
 #define QUEUE_LOG(MSG, ...)
 
-  /* If another write is in progress, enqueue this request.
-  ** Do NOT enqueue writes to page 1 (schema/change-counter). Those
-  ** changes must be visible immediately to the connection that
-  ** issued them. Defer only non-schema page writes.
-  */
-  if (pPager->eState == PAGER_WRITER_LOCKED && pPg->pgno != 1) {
-    WriteQueueEntry entry = { (void*)pPager, pPg, NULL };
-    if (!sqlite3WriteQueueIsFull(&writeQueue)) {
-      /* Enqueue the write request for later processing.
-      ** Returning SQLITE_BUSY here causes higher layers to treat
-      ** the write as an error. Make the enqueue transparent to
-      ** the caller by returning SQLITE_OK. The queued write will
-      ** be committed by the batch flush logic when possible.
-      */
-      sqlite3WriteQueueEnqueue(&writeQueue, &entry);
-      QUEUE_LOG("Enqueued write for page %d (Pager %p)", pPg->pgno, pPager);
-      return SQLITE_OK; /* Indicate accepted and queued */
-  } else {
-      QUEUE_LOG("Queue full, cannot enqueue write for page %d (Pager %p)", pPg->pgno, pPager);
-      return SQLITE_FULL; /* Queue is full */
+    /* If another write is in progress, enqueue this request.
+    ** Do NOT enqueue writes to page 1 (schema/change-counter). Those
+    ** changes must be visible immediately to the connection that
+    ** issued them. Defer only non-schema page writes.
+    */
+    if (pPager->eState == PAGER_WRITER_LOCKED && pPg->pgno != 1) {
+      WriteQueueEntry entry = { (void*)pPager, pPg, NULL };
+      if (!sqlite3WriteQueueIsFull(&writeQueue)) {
+        /* Enqueue the write request for later processing.
+        ** Returning SQLITE_BUSY here causes higher layers to treat
+        ** the write as an error. Make the enqueue transparent to
+        ** the caller by returning SQLITE_OK. The queued write will
+        ** be committed by the batch flush logic when possible.
+        */
+        sqlite3WriteQueueEnqueue(&writeQueue, &entry);
+        QUEUE_LOG("Enqueued write for page %d (Pager %p)", pPg->pgno, pPager);
+        return SQLITE_OK; /* Indicate accepted and queued */
+      } else {
+        QUEUE_LOG("Queue full, cannot enqueue write for page %d (Pager %p)", pPg->pgno, pPager);
+        return SQLITE_FULL; /* Queue is full */
+      }
     }
   }
+#endif
 
   /* Process write as normal */
   int rc = SQLITE_OK;

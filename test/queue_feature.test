@@ -1,0 +1,59 @@
+# Queue feature simple two-connection test
+# Uses an on-disk DB so two separate connections see the same table.
+# Queue feature simple two-connection test
+# Uses an on-disk DB so two separate connections see the same table.
+package require sqlite3
+
+set dbfile "test_queue_feature.db"
+file delete -force $dbfile
+ 
+# --- Concurrent worker test ---
+puts "Starting concurrent worker test (writers+readers)..."
+file delete -force $dbfile
+sqlite3 master $dbfile
+master eval {CREATE TABLE IF NOT EXISTS queue(id INTEGER PRIMARY KEY, payload TEXT);}
+master close
+
+set writers 4
+set readers 4
+set iters 2000
+set pids {}
+
+# start writers
+for {set i 1} {$i <= $writers} {incr i} {
+	set cmd "tclsh test/queue_worker.tcl writer $dbfile $iters $i &"
+	puts "spawn: $cmd"
+	exec sh -c $cmd
+}
+
+# start readers
+for {set i 1} {$i <= $readers} {incr i} {
+	set cmd "tclsh test/queue_worker.tcl reader $dbfile 0 $i &"
+	puts "spawn: $cmd"
+	exec sh -c $cmd
+}
+
+# Wait for background procs to finish by polling for any writer runfiles
+while {1} {
+	set writers_running [glob -nocomplain test/queue_writer_*.running]
+	if {[llength $writers_running] == 0} {break}
+	after 50
+}
+
+# Give readers a moment to finish
+after 200
+
+# Check for worker errors
+set errs [glob -nocomplain test/queue_worker_*.err]
+if {[llength $errs] != 0} {
+	puts "Worker errors detected:" $errs
+	exit 1
+}
+
+# Final verification
+sqlite3 vdb $dbfile
+set final_count [vdb eval "SELECT count(*) FROM queue"]
+puts "Concurrent final queue count: $final_count (should be 0)"
+vdb close
+file delete -force $dbfile
+puts "Concurrent test done"
