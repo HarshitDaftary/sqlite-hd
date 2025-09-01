@@ -2,8 +2,8 @@
 #  Test file for the experimental PRAGMA write_queue
 #
 #  Verifies:
-#   * Default value is 0
-#   * Setting to 1 (numeric) enables and persists
+#   * Default value is 1 (enabled)
+#   * Setting to 0 disables and persists
 #   * Setting via ON/OFF keywords works
 #   * Toggle back to 0
 #
@@ -21,24 +21,24 @@ if {![info exists ::sqlite_options(SQLITE_ENABLE_QUEUE)]} {
 
 reset_db
 
-do_execsql_test queue_enabled-1.1 { PRAGMA write_queue; } {1}
+do_execsql_test write_queue-1.1 { PRAGMA write_queue; } {1}
 
-do_execsql_test queue_enabled-1.2 {
+do_execsql_test write_queue-1.2 {
   PRAGMA write_queue=0;
   PRAGMA write_queue;
 } {0}
 
-do_execsql_test queue_enabled-1.3 {
+do_execsql_test write_queue-1.3 {
   PRAGMA write_queue=ON;
   PRAGMA write_queue;
 } {1}
 
-do_execsql_test queue_enabled-1.4 {
+do_execsql_test write_queue-1.4 {
   PRAGMA write_queue=OFF;
   PRAGMA write_queue;
 } {0}
 
-do_execsql_test queue_enabled-1.5 {
+do_execsql_test write_queue-1.5 {
   PRAGMA write_queue=0;
   PRAGMA write_queue;
 } {0}
