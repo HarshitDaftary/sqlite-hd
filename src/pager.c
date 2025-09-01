@@ -1,8 +1,8 @@
 #include <stdlib.h>
 
 #ifdef SQLITE_ENABLE_QUEUE
-/* Global variable to enable/disable queue feature at runtime (0=off,1=on) */
-static int gQueueEnabled = 0;
+/* Global variable to enable/disable queue feature at runtime (0=off,1=on). Default ON. */
+static int gQueueEnabled = 1;
 int sqlite3PagerQueueEnabled(void){ return gQueueEnabled; }
 void sqlite3PagerSetQueueEnabled(int v){ gQueueEnabled = v!=0; }
 #endif

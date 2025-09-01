@@ -63,7 +63,7 @@ set pragma_def {
   FLAG: Result0 SchemaReq NoColumns1
   IF:   !defined(SQLITE_OMIT_FLAG_PRAGMAS)
 
-  NAME: queue_enabled
+  NAME: write_queue
   FLAG: Result0
   IF:   defined(SQLITE_ENABLE_QUEUE)
 

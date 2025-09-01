@@ -1,5 +1,5 @@
 ########################################################################
-#  Test file for the experimental PRAGMA queue_enabled
+#  Test file for the experimental PRAGMA write_queue
 #
 #  Verifies:
 #   * Default value is 0
@@ -21,26 +21,26 @@ if {![info exists ::sqlite_options(SQLITE_ENABLE_QUEUE)]} {
 
 reset_db
 
-do_execsql_test queue_enabled-1.1 { PRAGMA queue_enabled; } {0}
+do_execsql_test queue_enabled-1.1 { PRAGMA write_queue; } {1}
 
 do_execsql_test queue_enabled-1.2 {
-  PRAGMA queue_enabled=1;
-  PRAGMA queue_enabled;
-} {1}
+  PRAGMA write_queue=0;
+  PRAGMA write_queue;
+} {0}
 
 do_execsql_test queue_enabled-1.3 {
-  PRAGMA queue_enabled=ON;
-  PRAGMA queue_enabled;
+  PRAGMA write_queue=ON;
+  PRAGMA write_queue;
 } {1}
 
 do_execsql_test queue_enabled-1.4 {
-  PRAGMA queue_enabled=OFF;
-  PRAGMA queue_enabled;
+  PRAGMA write_queue=OFF;
+  PRAGMA write_queue;
 } {0}
 
 do_execsql_test queue_enabled-1.5 {
-  PRAGMA queue_enabled=0;
-  PRAGMA queue_enabled;
+  PRAGMA write_queue=0;
+  PRAGMA write_queue;
 } {0}
 
 finish_test
