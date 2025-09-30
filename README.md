@@ -41,6 +41,21 @@ If you think you have found a bug that has security implications and
 you do not want to report it on the public forum, you can send a private
 email to drh at sqlite dot org.
 
+## Custom Features
+
+### Write Queue (Experimental)
+
+This fork includes an experimental write queue feature that can be enabled at compile time. To build with this feature:
+
+```bash
+./configure --write-queue
+make
+```
+
+See [doc/write-queue.md](doc/write-queue.md) for detailed documentation on using this feature.
+
+**Note**: This is an experimental feature and should be used with caution in production environments.
+
 ## Public Domain
 
 The SQLite source code is in the public domain.  See
