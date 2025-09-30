@@ -386,6 +386,8 @@ proc sqlite-configure {buildMode configScript} {
               builds.}
         scanstatus
           => {Enable the SQLITE_ENABLE_STMT_SCANSTATUS feature flag}
+        write-queue
+          => {Enable the SQLITE_ENABLE_QUEUE feature flag for multi-consumer write queue}
       }
       {canonical} {
         dev
@@ -784,6 +786,7 @@ proc sqlite-handle-common-feature-flags {} {
       }
     }
     scanstatus      -DSQLITE_ENABLE_STMT_SCANSTATUS {}
+    write-queue     -DSQLITE_ENABLE_QUEUE {}
     column-metadata -DSQLITE_ENABLE_COLUMN_METADATA {}
   }] {
     if {$boolFlag ni $::autosetup(options)} {
