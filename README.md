@@ -189,9 +189,10 @@ cd sqlite-hd
 
 ## 📚 **Documentation**
 
-- **[iOS Integration Guide](SPM_QUICK_START.md)** - Complete iOS setup
+- **[iOS Integration Guide](docs/iOS_QUICK_START.md)** - Complete iOS setup
 - **[Python Solutions](PYTHON_SOLUTIONS.md)** - Python wrapper details
-- **[Docker Usage](DOCKER_README.md)** - Container development
+- **[Docker Usage](docs/DOCKER_README.md)** - Container development
+- **[Examples](examples/)** - Working code examples for all platforms
 
 ## 💡 **Why Choose This Over Standard SQLite?**
 

@@ -41,3 +41,31 @@ Dockerfile*
 !/Tests/
 !Package.swift
 !README.md
+# Temporary files
+*.sqlite
+*.db
+mydb.*
+
+# Documentation status files
+GITHUB_SUCCESS.md
+MASTER_BRANCH_READY.md
+PUSH_TO_GITHUB.md
+DOCKER_SETUP_SUMMARY.md
+
+# Docker temporary files
+docker-compose.override.yml
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# macOS
+.DS_Store
+
+# Build artifacts
+*.dSYM/
+*.a
+*.o
+
