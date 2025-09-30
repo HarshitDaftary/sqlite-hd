@@ -269,7 +269,7 @@ EXTRA_SRC ?=
 # invocations of $(B.cc)). The configure process does not set either
 # of $(OPTIONS) or $(OPTS).
 #
-OPT_FEATURE_FLAGS ?=
+OPT_FEATURE_FLAGS ?= -DSQLITE_ENABLE_QUEUE
 #
 # $(SHELL_OPT) =
 #

@@ -1,0 +1,43 @@
+# .gitignore for Swift Package
+
+# Swift Package Manager
+/.build
+/Packages
+/*.xcodeproj
+xcuserdata/
+DerivedData/
+
+# Xcode
+.DS_Store
+*.xcuserstate
+*.xcworkspace
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+*.framework
+*.xcframework
+
+# SQLite build files (keep only the package structure)
+/bld/
+/ios_build/
+Makefile
+config.log
+*.mk
+
+# Docker
+Dockerfile*
+.dockerignore
+
+# Temporary files
+*.tmp
+*.log
+/data/
+
+# Keep the SPM structure
+!/Sources/
+!/Tests/
+!Package.swift
+!README.md
